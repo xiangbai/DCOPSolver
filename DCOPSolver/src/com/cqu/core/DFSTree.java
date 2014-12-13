@@ -1,5 +1,8 @@
 package com.cqu.core;
 
+/*
+ * 通过深度遍历得到一颗DFS伪树,根据解析得到的邻接矩阵表对图进行深度遍历
+ */
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +24,7 @@ public class DFSTree implements TreeGenerator{
 	
 	private Integer rootId=-1;
 	
+	//根据邻接矩阵表，初始化结点之间的关系
 	public DFSTree(Map<Integer, int[]> neighbourNodes) {
 		// TODO Auto-generated constructor stub
 		this.neighbourNodes=neighbourNodes;
@@ -31,6 +35,10 @@ public class DFSTree implements TreeGenerator{
 		
 		this.nodeIterated=new HashMap<Integer, Boolean>();
 		this.neighbourCounts=new HashMap<Integer, int[]>();
+		
+		/*
+		 * 计算每个结点相邻结点的个数
+		 */
 		for(Integer nodeId : this.neighbourNodes.keySet())
 		{
 			this.childrenNodes.put(nodeId, new ArrayList<Integer>());
@@ -39,15 +47,21 @@ public class DFSTree implements TreeGenerator{
 			
 			int[] neighbours=this.neighbourNodes.get(nodeId);
 			int[] nodeNeighbourCounts=new int[neighbours.length];
+			
 			for(int i=0;i<nodeNeighbourCounts.length;i++)
 			{
 				nodeNeighbourCounts[i]=this.neighbourNodes.get(neighbours[i]).length;
+				
 			}
+			
 			this.neighbourCounts.put(nodeId, nodeNeighbourCounts);
 		}
 		
 		int maxNeighbourCount=-1;
 		int maxNeighbourCountNodeId=-1;
+		/*
+		 * 寻找邻居结点最多的结点ID
+		 */
 		for(Integer nodeId : this.neighbourNodes.keySet())
 		{
 			int temp=this.neighbourNodes.get(nodeId).length;
@@ -60,13 +74,16 @@ public class DFSTree implements TreeGenerator{
 		this.rootId=maxNeighbourCountNodeId;
 	}
 	
+	//获取邻居结点最多的结点
 	private Integer getMaxNeighboursNodeId(Integer nodeId)
 	{
 		int[] neighbours=this.neighbourNodes.get(nodeId);
+		
+		System.out.println();
 		int[] counts=this.neighbourCounts.get(nodeId);
 		for(int i=0;i<counts.length;i++)
 		{
-			if(this.nodeIterated.get(neighbours[i])==true)
+			if(this.nodeIterated.get(neighbours[i])==true) //是否遍历过
 			{
 				counts[i]=-1;
 			}
@@ -81,6 +98,9 @@ public class DFSTree implements TreeGenerator{
 		}
 	}
 
+	/*
+	 * 通过遍历产生一颗DFS伪树
+	 * */
 	@Override
 	public void generate() {
 		// TODO Auto-generated method stub
@@ -94,9 +114,11 @@ public class DFSTree implements TreeGenerator{
 		this.nodeLevel.put(curNodeId, curLevel);
 		
 		int totalCount=neighbourNodes.size();
+		//DFS遍历算法
 		while(iteratedCount<totalCount)
 		{
-			Integer nextNodeId=this.getMaxNeighboursNodeId(curNodeId);
+			//下一个结点选择策略
+			Integer nextNodeId=this.getMaxNeighboursNodeId(curNodeId); //下一个结点的选择是以连接边最多的为准
 			if(nextNodeId==-1)
 			{
 				curLevel--;
@@ -138,6 +160,7 @@ public class DFSTree implements TreeGenerator{
 
 	@SuppressWarnings("rawtypes")
 	@Override
+	/*用来计算结点之间的伪关系*/
 	public Map[] getAllChildrenAndParentNodes() {
 		// TODO Auto-generated method stub
 		Map<Integer, List<Integer>> allChildren=new HashMap<Integer, List<Integer>>();

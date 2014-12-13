@@ -80,6 +80,7 @@ public abstract class Agent extends QueueMessager{
 			this.pseudoParents=CollectionUtil.except(this.allParents, new int[]{this.parent});
 		}
 		
+		
 		this.neighbourDomains=neighbourDomains;
 		this.constraintCosts=constraintCosts;
 		this.neighbourLevels=neighbourLevels;
