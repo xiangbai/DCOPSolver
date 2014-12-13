@@ -21,6 +21,19 @@ public class StatisticUtil {
 		}
 		return maxIndex;
 	}
+	public static int min(int[] arr){
+		int minIndex = 0; 
+		int minValue = arr[0];
+		for(int i=1; i < arr.length; i++)
+		{
+			if(minValue > arr[i])
+			{
+				minIndex = i ;
+				minValue = arr[i];
+			}
+		}
+		return minIndex;
+	}
 	
 	/**
 	 * 
