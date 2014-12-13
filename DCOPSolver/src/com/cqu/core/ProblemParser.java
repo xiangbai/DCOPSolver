@@ -1,16 +1,28 @@
 package com.cqu.core;
 
+/*
+ * 问题解析类，对XML文件进行解析，得到每个结点，以及每个结点之间的约束关系
+ * 
+ */
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+
 import org.jdom2.Document;
 import org.jdom2.Element;
 
 import com.cqu.bfsdpop.CrossEdgeAllocator;
+import com.cqu.heuristics.LeastConnectedHeuristic;
+import com.cqu.heuristics.MostConnectedHeuristic;
+import com.cqu.heuristics.RandScoringHeuristic;
 import com.cqu.util.CollectionUtil;
 import com.cqu.util.XmlUtil;
+import com.cqu.varOrdering.DFS.DFSgeneration;
 
 public class ProblemParser {
 	
@@ -56,6 +68,7 @@ public class ProblemParser {
 		this.xmlPath=path;
 	}
 	
+	// 根据树的类型进行相应的解析操作
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public Problem parse(String treeGeneratorType)
 	{
@@ -75,53 +88,80 @@ public class ProblemParser {
 			return null;
 		}
 		
-		Map<String, Integer> agentNameIds=parseAgents(root.getChild(AGENTS), problem);
+		Map<String, Integer> agentNameIds=parseAgents(root.getChild(AGENTS), problem); // 获取Agents
 		if(agentNameIds==null)
 		{
 			this.printMessage("parseAgents() fails!");
 			return null;
 		}
 		
-		if(parseDomains(root.getChild(DOMAINS), problem)==false)
+		if(parseDomains(root.getChild(DOMAINS), problem)==false) // 获取结点的域值
 		{
 			this.printMessage("parseDomains() fails!");
 			return null;
 		}
 		
-		Map<String, Integer> variableNameAgentIds=parseVariables(root.getChild(VARIABLES), problem, agentNameIds);
+		Map<String, Integer> variableNameAgentIds=parseVariables(root.getChild(VARIABLES), problem, agentNameIds); // 获取每个变量
 		if(variableNameAgentIds==null)
 		{
 			this.printMessage("parseVariables() fails!");
 			return null;
 		}
 		
-		if(parseRelations(root.getChild(RELATIONS), problem)==false)
+		if(parseRelations(root.getChild(RELATIONS), problem)==false) // 获取每个结点之间的约束代价
 		{
 			this.printMessage("parseRelations() fails!");
 			return null;
 		}
 		
-		if(parseConstraints(root.getChild(CONSTRAINTS), problem, variableNameAgentIds)==false)
+		if(parseConstraints(root.getChild(CONSTRAINTS), problem, variableNameAgentIds)==false) // 获取每个结点之间的约束关系
 		{
 			this.printMessage("parseConstraints() fails!");
 			return null;
 		}
+		/*
+		 * 获取邻接矩阵
+		 */
 		
 		TreeGenerator treeGenerator;
+		//构造树的结构
 		if(treeGeneratorType.equals(TreeGenerator.TREE_GENERATOR_TYPE_DFS))
 		{
-			treeGenerator=new DFSTree(problem.neighbourAgents);
+			/*for(Map.Entry<Integer, int[]> entry : problem.neighbourAgents.entrySet()){
+				System.out.println(entry.getKey());
+				for(int i = 0; i < entry.getValue().length; i++){
+					System.out.print(entry.getValue()[i] + "  ");
+				}
+				System.out.println();
+			}
+			for(Integer nodeId : problem.neighbourAgents.keySet())
+			{
+				System.out.println(nodeId);
+			}*/
+			//已获得了图的邻接矩阵，对图进行深度遍历
+			//treeGenerator=new DFSTree(problem.neighbourAgents); //将每个结点的邻居关系结点传递过去
+			
+			treeGenerator = new DFSgeneration (problem.neighbourAgents); //DFS树的构造方法
 		}else
 		{
 			treeGenerator=new BFSTree(problem.neighbourAgents);
 		}
-		treeGenerator.generate();
+		
+		//固定了树的生成策略，只是暂时这样，需要进一步的改进
+		DFSgeneration.setRootHeuristics(new MostConnectedHeuristic(problem));
+		DFSgeneration.setNextNodeHeuristics(new MostConnectedHeuristic(problem));
+		
+		treeGenerator.generate(); //开始构造树的结构
+		
+		//构造完结构之后可以得到相应的结点关系
 		
 		problem.agentLevels=treeGenerator.getNodeLevels();
 		for(Integer level:problem.agentLevels.values())
 			if(problem.treeDepth<(level+1))problem.treeDepth=level+1;
 		problem.parentAgents=treeGenerator.getParentNode();
+		
 		problem.childAgents=treeGenerator.getChildrenNodes();
+		
 		Map[] allParentsAndChildren=treeGenerator.getAllChildrenAndParentNodes();
 		problem.allParentAgents=allParentsAndChildren[0];
 		problem.allChildrenAgents=allParentsAndChildren[1];
@@ -132,9 +172,15 @@ public class ProblemParser {
 			allocator.allocate();
 			problem.crossConstraintAllocation=allocator.getConsideredConstraint();
 		}
+		//返回问题本身中结点之间的关系
+		
 		
 		return problem;
 	}
+
+	
+	
+	
 	
 	private boolean parsePresentation(Element element)
 	{
@@ -177,6 +223,7 @@ public class ProblemParser {
 			{
 				int id=Integer.parseInt(elementList.get(i).getAttributeValue(ID));
 				String name=elementList.get(i).getAttributeValue(NAME);
+				
 				
 				agentNameIds.put(name, id);
 				problem.agentNames.put(id, name);
@@ -278,6 +325,7 @@ public class ProblemParser {
 			int agentId=agentNameIds.get(elementList.get(i).getAttributeValue(AGENT));
 			variableNameAgentIds.put(elementList.get(i).getAttributeValue(NAME), agentId);
 			problem.agentDomains.put(agentId, elementList.get(i).getAttributeValue(DOMAIN));
+			problem.variables.put(elementList.get(i).getAttributeValue(NAME), agentId);
 		}
 		return variableNameAgentIds;
 	}
@@ -373,6 +421,8 @@ public class ProblemParser {
 		}
 		return costs;
 	}
+	
+	//解析每个结点之间的约束关系
 	
 	private boolean parseConstraints(Element element, Problem problem, Map<String, Integer> variableNameAgentIds)
 	{

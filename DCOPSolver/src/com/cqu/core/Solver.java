@@ -12,26 +12,37 @@ import com.cqu.cyclequeue.MessageMailerCycle;
 import com.cqu.main.Debugger;
 import com.cqu.settings.Settings;
 import com.cqu.util.FileUtil;
+import com.cqu.varOrdering.DFS.DFSgeneration;
 import com.cqu.visualtree.GraphFrame;
 import com.cqu.visualtree.TreeFrame;
+import com.cqu.main.DOTrenderer;
 
 public class Solver {
 	
 	private List<Result> results=new ArrayList<Result>();
 	private List<Result> resultsRepeated;
 
-	public void solve(String problemPath, String agentType, boolean showTreeFrame, boolean debug, EventListener el)
+	/*
+	 * 处理单个文件的情况
+	 */
+	public void solve(String problemPath, String agentType, boolean showTreeFrame, boolean debug, EventListener el) throws Exception
 	{
 		//parse problem xml
-		ProblemParser parser=new ProblemParser(problemPath);
-		
+		// 传递XML文件路径
+		//ProblemParser parser=new ProblemParser(problemPath);
+		XCSPparser parser = new XCSPparser (problemPath);
 		Problem problem=null;
 		if(agentType.equals("BFSDPOP"))
+		{	
+			//problem=parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_BFS);
+			parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_BFS);
+			problem = parser.getProblem();
+		}else //构造DFS
 		{
-			problem=parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_BFS);
-		}else
-		{
-			problem=parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_DFS);
+			// 对XML解析之后构建该问题中每个结点之间的关系
+			//problem=parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_DFS);
+			parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_DFS);
+			problem = parser.getProblem();
 		}
 		if(problem==null)
 		{
@@ -47,8 +58,11 @@ public class Solver {
 		//display DFS tree，back edges not included
 		if(showTreeFrame==true)
 		{
-			TreeFrame treeFrame=new TreeFrame(DFSTree.toTreeString(problem.agentNames, problem.parentAgents, problem.childAgents));
+			//TreeFrame treeFrame=new TreeFrame(DFSTree.toTreeString(problem.agentNames, problem.parentAgents, problem.childAgents));
+			TreeFrame treeFrame=new TreeFrame(DFSgeneration.toTreeString(problem.agentNames, problem.parentAgents, problem.childAgents));
 			treeFrame.showTreeFrame();
+			//display constrain graph
+			new DOTrenderer ("Constraint graph", parser.toDOT(problemPath));
 		}
 		
 		//set whether to print running data records
@@ -234,7 +248,9 @@ public class Solver {
 		avg.minus(max, repeatTimes-2);
 		return avg;
 	}
-	
+	/*
+	 * 批处理的方式
+	 */
 	private void batSolveEach(String problemPath, String algorithmType, final AtomicBoolean problemSolved)
 	{
 		ProblemParser parser = new ProblemParser(problemPath);
