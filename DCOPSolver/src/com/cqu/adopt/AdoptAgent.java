@@ -158,6 +158,7 @@ public class AdoptAgent extends Agent{
 		}
 		
 		int childId=0;
+		
 		for(int i=0;i<this.children.length;i++)
 		{
 			childId=this.children[i];
