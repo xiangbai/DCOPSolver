@@ -1,4 +1,4 @@
-package com.cqu.dpop;
+package com.cqu.hybridmbdpop;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -6,16 +6,20 @@ import java.util.List;
 import java.util.Map;
 
 import com.cqu.core.Agent;
+import com.cqu.core.Context;
 import com.cqu.core.Infinity;
 import com.cqu.core.Message;
 import com.cqu.core.ResultDPOP;
+import com.cqu.dpop.Dimension;
+import com.cqu.dpop.MultiDimensionData;
+import com.cqu.dpop.ReductDimensionResult;
 import com.cqu.settings.Settings;
 import com.cqu.util.CollectionUtil;
 import com.cqu.util.FormatUtil;
 import com.cqu.util.StatisticUtil;
 
-public class DPOPAgent extends Agent{
-
+public class HybridMBDPOP extends Agent{
+	
 	public final static int TYPE_VALUE_MESSAGE=0;
 	public final static int TYPE_UTIL_MESSAGE=1;
 	
@@ -23,27 +27,31 @@ public class DPOPAgent extends Agent{
 	public final static String KEY_UTIL_MESSAGE_SIZES="KEY_UTIL_MESSAGE_SIZES";
 	
 	private Integer[] parentLevels;
-	private int disposedChildrenCount;
-	private int[] reductDimensionResultIndexes;
-	private MultiDimensionData rawMDData;
-	private List<Dimension> dimensions;
 	
 	private List<Integer> utilMsgSizes;
-	
 	private int totalCost;
+	
+	private boolean isSearchingPolicy;
+	private boolean[] isNeighborSearchingPolicy;
+	
+	private List<MultiDimensionData> localMDDatas;
+	private List<MultiDimensionData> receivedMDDatas;
 	
 	{
 		//表示消息不丢失
 		QUEUE_CAPACITY=-1;
 	}
 	
-	public DPOPAgent(int id, String name, int level, int[] domain) {
+	public HybridMBDPOP(int id, String name, int level, int[] domain, boolean isSearchingPolicy, boolean[] isNeighborSearchingPolicy) {
 		super(id, name, level, domain);
 		// TODO Auto-generated constructor stub
-		disposedChildrenCount=0;
 		totalCost=0;
+		this.isSearchingPolicy=isSearchingPolicy;
+		this.isNeighborSearchingPolicy=isNeighborSearchingPolicy;
 		
 		utilMsgSizes=new ArrayList<Integer>();
+		localMDDatas=new ArrayList<MultiDimensionData>();
+		receivedMDDatas=new ArrayList<MultiDimensionData>();
 	}
 	
 	@Override
@@ -57,19 +65,80 @@ public class DPOPAgent extends Agent{
 			parentLevels[i]=neighbourLevels.get(allParents[i]);
 		}
 		
-		if(this.isRootAgent()==false)
-		{
-			rawMDData=this.computeLocalUtils();
-		}
 		if(this.isLeafAgent()==true)
 		{
-			ReductDimensionResult result=rawMDData.reductDimension(this.id+"", ReductDimensionResult.REDUCT_DIMENSION_WITH_MIN);
-			rawMDData=result.getMdData();
-			dimensions=rawMDData.getDimensions();
-			reductDimensionResultIndexes=result.getResultIndex();
-			
-			sendUtilMessage(rawMDData);
+			startFromLeaf();
 		}
+	}
+	
+	private void startFromLeaf()
+	{
+		if(this.isSearchingPolicy==true)
+		{
+			for(int i=0;i<this.domain.length;i++)
+			{
+				for(MultiDimensionData mdData : localMDDatas)
+				{
+					Context c=new Context();
+					c.addOrUpdate(this.id, i);
+					sendUtilMessage(mdData.shrinkDimension(mdData.getDimensions().get(1).getName(), i), c);
+				}
+			}
+		}else
+		{
+			/*Context c=new Context();
+			for(MultiDimensionData mdData : localMDDatas)
+			{
+				Dimension oppositeDimension=mdData.getDimensions().get(0);
+				int oppositeId=Integer.parseInt(oppositeDimension.getName());
+				if(isNeighborSearchingPolicy[CollectionUtil.indexOf(neighbours, oppositeId)]==true)
+				{
+					c.addOrUpdate(this.id, i);
+				}
+
+				sendUtilMessage(mdData.shrinkDimension(mdData.getDimensions().get(1).getName(), i), c);
+			}*/
+		}
+	}
+	
+	private List<MultiDimensionData> computeLocalUtils()
+	{
+		List<MultiDimensionData> ret=new ArrayList<MultiDimensionData>();
+		for(int i=0;i<allParents.length;i++)
+		{
+			List<Dimension> dimensions=new ArrayList<Dimension>();
+			
+			int parentId=allParents[i];
+			int row=neighbourDomains.get(parentId).length;
+			int col=this.domain.length;
+			dimensions.add(new Dimension(parentId+"", row, parentLevels[i]));
+			dimensions.add(new Dimension(this.id+"", this.domain.length, this.level));
+			
+			int[] data=new int[row*col];
+			int[][] costs=this.constraintCosts.get(allParents[i]);
+			//原始数据中id小的为行，id大的为列
+			if(this.id<parentId)
+			{
+				for(int j=0;j<row;j++)
+				{
+					for(int k=0;k<col;k++)
+					{
+						data[j*col+k]=costs[k][j];
+					}
+				}
+			}else
+			{
+				for(int j=0;j<row;j++)
+				{
+					for(int k=0;k<col;k++)
+					{
+						data[j*col+k]=costs[j][k];
+					}
+				}
+			}
+			ret.add(new MultiDimensionData(dimensions, data));
+		}
+		return ret;
 	}
 	
 	@Override
@@ -78,12 +147,12 @@ public class DPOPAgent extends Agent{
 		super.runFinished();
 		
 		Map<String, Object> result=new HashMap<String, Object>();
-		result.put(DPOPAgent.KEY_ID, this.id);
-		result.put(DPOPAgent.KEY_NAME, this.name);
-		result.put(DPOPAgent.KEY_VALUE, this.domain[valueIndex]);
+		result.put(KEY_ID, this.id);
+		result.put(KEY_NAME, this.name);
+		result.put(KEY_VALUE, this.domain[valueIndex]);
 		if(this.isRootAgent()==true)
 		{
-			result.put(DPOPAgent.KEY_TOTAL_COST, this.totalCost);
+			result.put(HybridMBDPOP.KEY_TOTAL_COST, this.totalCost);
 		}
 		result.put(KEY_UTIL_MESSAGE_SIZES, this.utilMsgSizes);
 		
@@ -102,14 +171,14 @@ public class DPOPAgent extends Agent{
 		for(int i=0;i<results.size();i++)
 		{
 			result=results.get(i);
-			int id_=(Integer) result.get(DPOPAgent.KEY_ID);
-			String name_=(String) result.get(DPOPAgent.KEY_NAME);
-			int value_=(Integer) result.get(DPOPAgent.KEY_VALUE);
-			if(result.containsKey(DPOPAgent.KEY_TOTAL_COST))
+			int id_=(Integer) result.get(KEY_ID);
+			String name_=(String) result.get(KEY_NAME);
+			int value_=(Integer) result.get(KEY_VALUE);
+			if(result.containsKey(HybridMBDPOP.KEY_TOTAL_COST))
 			{
-				totalCost=(Integer) result.get(DPOPAgent.KEY_TOTAL_COST);
+				totalCost=(Integer) result.get(KEY_TOTAL_COST);
 			}
-			sizeList.addAll((List<Integer>)result.get(DPOPAgent.KEY_UTIL_MESSAGE_SIZES));
+			sizeList.addAll((List<Integer>)result.get(KEY_UTIL_MESSAGE_SIZES));
 			
 			String displayStr="Agent "+name_+": id="+id_+" value="+value_;
 			System.out.println(displayStr);
@@ -137,18 +206,18 @@ public class DPOPAgent extends Agent{
 	@Override
 	public String easyMessageContent(Message msg, Agent sender, Agent receiver) {
 		// TODO Auto-generated method stub
-		return "from "+sender.getName()+" to "+receiver.getName()+" type "+DPOPAgent.messageContent(msg);
+		return "from "+sender.getName()+" to "+receiver.getName()+" type "+messageContent(msg);
 	}
 	
 	public static String messageContent(Message msg)
 	{
 		switch (msg.getType()) {
-		case DPOPAgent.TYPE_VALUE_MESSAGE:
+		case TYPE_VALUE_MESSAGE:
 		{
 			int valueIndex=(Integer) msg.getValue();
 			return "value["+valueIndex+"]";
 		}
-		case DPOPAgent.TYPE_UTIL_MESSAGE:
+		case TYPE_UTIL_MESSAGE:
 		{
 			MultiDimensionData mdData=(MultiDimensionData) msg.getValue();
 			return "util[dimensions="+mdData.getDimensions().toString()+"]";
@@ -179,72 +248,19 @@ public class DPOPAgent extends Agent{
 		System.out.println("Error occurs because no message can be lost!");
 	}
 	
-	private void sendUtilMessage(MultiDimensionData multiDimentionalData)
+	private void sendUtilMessage(MultiDimensionData multiDimentionalData, Context context)
 	{
 		if(this.isRootAgent()==true)
 		{
 			return;
 		}
-		Message utilMsg=new Message(this.id, this.parent, TYPE_UTIL_MESSAGE, multiDimentionalData);
+		Message utilMsg=new UtilMessage(this.id, this.parent, TYPE_UTIL_MESSAGE, multiDimentionalData, context);
 		this.sendMessage(utilMsg);
-	}
-	
-	private MultiDimensionData computeLocalUtils()
-	{
-		int dataLength=1;
-		List<Dimension> dimensions=new ArrayList<Dimension>();
-		for(int i=0;i<allParents.length;i++)
-		{
-			int parentId=allParents[i];
-			int dimensionSize=neighbourDomains.get(parentId).length;
-			dimensions.add(new Dimension(parentId+"", dimensionSize, parentLevels[i]));
-			dataLength=dataLength*dimensionSize;
-		}
-		dimensions.add(new Dimension(this.id+"", this.domain.length, this.level));
-		dataLength=dataLength*this.domain.length;
-		//set data
-		int[] agentValueIndexes=new int[allParents.length+1];
-		int[] data=new int[dataLength];
-		int dataIndex=0;
-		int curDimention=agentValueIndexes.length-1;
-		while(dataIndex<data.length)
-		{
-			int costSum=0;
-			for(int i=0;i<allParents.length;i++)
-			{
-				//原始数据中id小的为行，id大的为列
-				if(this.id<allParents[i])
-				{
-					costSum+=this.constraintCosts.get(allParents[i])[agentValueIndexes[agentValueIndexes.length-1]][agentValueIndexes[i]];
-				}else
-				{
-					costSum+=this.constraintCosts.get(allParents[i])[agentValueIndexes[i]][agentValueIndexes[agentValueIndexes.length-1]];
-				}
-			}
-			data[dataIndex]=costSum;
-			
-			agentValueIndexes[curDimention]+=1;
-			while(agentValueIndexes[curDimention]>=dimensions.get(curDimention).getSize())
-			{
-				agentValueIndexes[curDimention]=0;
-				curDimention-=1;
-				if(curDimention==-1)
-				{
-					//all data has been set
-					break;
-				}
-				agentValueIndexes[curDimention]+=1;
-			}
-			curDimention=agentValueIndexes.length-1;
-			dataIndex++;
-		}
-		
-		return new MultiDimensionData(dimensions, data);
 	}
 	
 	private void disposeUtilMessage(Message msg)
 	{
-		if(this.isRootAgent()==true&&rawMDData==null)
+		/*if(this.isRootAgent()==true&&rawMDData==null)
 		{
 			rawMDData=(MultiDimensionData) msg.getValue();
 		}else
@@ -275,7 +291,7 @@ public class DPOPAgent extends Agent{
 			{
 				this.sendUtilMessage(result.getMdData());
 			}
-		}
+		}*/
 	}
 	
 	private void sendValueMessage(Map<Integer, Integer> valueIndexes)
@@ -295,7 +311,7 @@ public class DPOPAgent extends Agent{
 	@SuppressWarnings("unchecked")
 	private void disposeValueMessage(Message msg)
 	{
-		Map<Integer, Integer> valueIndexes=(Map<Integer, Integer>) msg.getValue();
+		/*Map<Integer, Integer> valueIndexes=(Map<Integer, Integer>) msg.getValue();
 		
 		int[] periods=new int[dimensions.size()];
 		for(int i=0;i<dimensions.size();i++)
@@ -317,7 +333,6 @@ public class DPOPAgent extends Agent{
 		valueIndexes.put(this.id, this.valueIndex);
 		this.sendValueMessage(valueIndexes);
 		
-		this.stopRunning();
+		this.stopRunning();*/
 	}
-
 }

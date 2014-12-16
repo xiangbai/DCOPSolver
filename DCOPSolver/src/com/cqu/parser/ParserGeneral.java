@@ -1,4 +1,4 @@
-package com.cqu.core;
+package com.cqu.parser;
 
 /*
  * 问题解析类，对XML文件进行解析，得到每个结点，以及每个结点之间的约束关系
@@ -23,49 +23,15 @@ import com.cqu.heuristics.RandScoringHeuristic;
 import com.cqu.util.CollectionUtil;
 import com.cqu.util.XmlUtil;
 import com.cqu.varOrdering.DFS.DFSgeneration;
+import org.jdom2.Element;
 
-public class ProblemParser {
-	
-	public static final String ID="id";
-	public static final String NAME="name";
-	public static final String TYPE="type";
-	public static final String ARITY="arity";
-	
-	public static final String INSTANCE="instance";
-	
-	public static final String PRESENTATION="presentation";
-	
-	public static final String AGENTS="agents";
-	public static final String NBAGENTS="nbAgents";
-	public static final String AGENT="agent";
-	
-	public static final String DOMAINS="domains";
-	public static final String DOMAIN="domain";
-	public static final String NBDOMAINS="nbDomains";
-	public static final String NBVALUES="nbValues";
-	
-	public static final String VARIABLES="variables";
-	public static final String NBVARIABLES="nbVariables";
-	
-	public static final String CONSTRAINTS="constraints";
-	public static final String NBCONSTRAINTS="nbConstraints";
-	public static final String SCOPE="scope";
-	public static final String REFERENCE="reference";
-	
-	public static final String RELATIONS="relations";
-	public static final String NBRELATIONS="nbRelations";
-	public static final String NBTUPLES="nbTuples";
-	
-	
-	public static final String TYPE_DCOP="DCOP";
-	public static final String TYPE_GRAPH_COLORING="DisCSP";
-	
-	private String xmlPath;
-	private String problemType;
-	
-	public ProblemParser(String path) {
+import com.cqu.util.CollectionUtil;
+
+public class ParserGeneral extends ContentParser{
+
+	public ParserGeneral(Element root, String problemType) {
+		super(root, problemType);
 		// TODO Auto-generated constructor stub
-		this.xmlPath=path;
 	}
 	
 	// 根据树的类型进行相应的解析操作
@@ -89,6 +55,8 @@ public class ProblemParser {
 		}
 		
 		Map<String, Integer> agentNameIds=parseAgents(root.getChild(AGENTS), problem); // 获取Agents
+		// TODO Auto-generated method stub
+		Map<String, Integer> agentNameIds=parseAgents(root.getChild(AGENTS), problem);
 		if(agentNameIds==null)
 		{
 			this.printMessage("parseAgents() fails!");
@@ -178,7 +146,42 @@ public class ProblemParser {
 		return problem;
 	}
 
-	
+	@Override
+	protected Problem parseContent(Problem problem) {
+// TODO Auto-generated method stub
+		Map<String, Integer> agentNameIds=parseAgents(root.getChild(AGENTS), problem);
+		if(agentNameIds==null)
+		{
+			this.printMessage("parseAgents() fails!");
+			return null;
+		}
+		
+		if(parseDomains(root.getChild(DOMAINS), problem)==false) // 获取结点的域值
+		{
+			this.printMessage("parseDomains() fails!");
+			return null;
+		}
+		
+		Map<String, Integer> variableNameAgentIds=parseVariables(root.getChild(VARIABLES), problem, agentNameIds); // 获取每个变量
+		if(variableNameAgentIds==null)
+		{
+			this.printMessage("parseVariables() fails!");
+			return null;
+		}
+		
+		if(parseRelations(root.getChild(RELATIONS), problem)==false) // 获取每个结点之间的约束代价
+		{
+			this.printMessage("parseRelations() fails!");
+			return null;
+		}
+		
+		if(parseConstraints(root.getChild(CONSTRAINTS), problem, variableNameAgentIds)==false) // 获取每个结点之间的约束关系
+		{
+			this.printMessage("parseConstraints() fails!");
+			return null;
+		}
+		return problem;
+	}
 	
 	
 	
@@ -196,6 +199,11 @@ public class ProblemParser {
 		return true;
 	}
 	
+=======
+		
+		return problem;
+	}
+
 	private Map<String, Integer> parseAgents(Element element, Problem problem)
 	{
 		if(element==null)
@@ -492,10 +500,5 @@ public class ProblemParser {
 		}
 		
 		return true;
-	}
-	
-	private void printMessage(String msg)
-	{
-		System.out.println(msg);
 	}
 }

@@ -1,7 +1,8 @@
-package com.cqu.core;
 /*
  * 通过约束图获取相结点之间彼此的关系，从而记录它们相对应的关系
  * */
+package com.cqu.parser;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -29,6 +30,7 @@ public class Problem {
 		
 		agentLevels=new HashMap<Integer, Integer>();
 		treeDepth=0;
+		pseudoHeight=0;
 		agentDomains=new HashMap<Integer, String>();
 		neighbourAgents=new HashMap<Integer, int[]>();
 		
@@ -49,6 +51,7 @@ public class Problem {
 	public Map<String, Integer> variables;
 	public Map<Integer, Integer> agentLevels;
 	public long treeDepth;
+	public long pseudoHeight;     //用来辅佐BD-ADOPT算法
 	public Map<Integer,String> agentDomains;
 	public Map<Integer, int[]> neighbourAgents;
 	

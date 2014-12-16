@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.cqu.cyclequeue.AgentManagerCycle;
 import com.cqu.cyclequeue.MessageMailerCycle;
 import com.cqu.main.Debugger;
+import com.cqu.parser.Problem;
+import com.cqu.parser.ProblemParser;
 import com.cqu.settings.Settings;
 import com.cqu.util.FileUtil;
 import com.cqu.varOrdering.DFS.DFSgeneration;
@@ -30,20 +32,32 @@ public class Solver {
 		//parse problem xml
 		// 传递XML文件路径
 		//ProblemParser parser=new ProblemParser(problemPath);
-		XCSPparser parser = new XCSPparser (problemPath);
-		Problem problem=null;
+		//XCSPparser parser = new XCSPparser (problemPath);
+		//Problem problem=null;
+		String treeGeneratorType=null;
 		if(agentType.equals("BFSDPOP"))
 		{	
 			//problem=parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_BFS);
-			parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_BFS);
-			problem = parser.getProblem();
-		}else //构造DFS
-		{
+			//parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_BFS);
+			//problem = parser.getProblem();
+			treeGeneratorType=TreeGenerator.TREE_GENERATOR_TYPE_BFS;
+		}//else //构造DFS
+		//{
 			// 对XML解析之后构建该问题中每个结点之间的关系
 			//problem=parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_DFS);
-			parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_DFS);
-			problem = parser.getProblem();
+			//parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_DFS);
+			//problem = parser.getProblem();
+			
+		//}
+		else
+		{
+			treeGeneratorType=TreeGenerator.TREE_GENERATOR_TYPE_DFS;
 		}
+		
+		Problem problem=null;
+		ProblemParser parser=new ProblemParser(problemPath, treeGeneratorType);
+		problem=parser.parse();
+		
 		if(problem==null)
 		{
 			return;
@@ -69,17 +83,16 @@ public class Solver {
 		Debugger.init(problem.agentNames);
 		Debugger.debugOn=debug;
 		
-		
 		//采用同步消息机制的算法
 		if(agentType.equals("BNBADOPT")||agentType.equals("BDADOPT")||agentType.equals("ADOPT_K")||agentType.equals("SynAdopt1")||agentType.equals("SynAdopt2"))
 		//if(agentType.equals("BNBADOPT")||agentType.equals("ADOPT"))
 		{
 			//construct agents
-			AgentManagerCycle agentManager=new AgentManagerCycle(problem, agentType);
-			MessageMailerCycle msgMailer=new MessageMailerCycle(agentManager);
+			AgentManagerCycle agentManagerCycle=new AgentManagerCycle(problem, agentType);
+			MessageMailerCycle msgMailer=new MessageMailerCycle(agentManagerCycle);
 			msgMailer.addEventListener(el);
 			msgMailer.start();
-			agentManager.startAgents(msgMailer);
+			agentManagerCycle.startAgents(msgMailer);
 		}
 		//采用异步消息机制的算法
 		else
@@ -115,10 +128,12 @@ public class Solver {
 				});
 				
 				AtomicBoolean problemSolved=new AtomicBoolean(false);
-				for(int i=0;i<files.length;i++)
+				int i=0;
+				for(i=0;i<files.length;i++)
 				{
 					resultsRepeated=new ArrayList<Result>();
-					for(int k=0;k<repeatTimes;k++)
+					int k=0;
+					for(k=0;k<repeatTimes;k++)
 					{
 						batSolveEach(files[i].getPath(), agentType, problemSolved);
 						
@@ -153,13 +168,19 @@ public class Solver {
 							
 						});
 					}
+					if(k<repeatTimes)
+					{
+						break;
+					}
 					results.add(disposeRepeated(repeatTimes));
 				}
-				
-				//write results to storage
-				writeResultToStorage(problemDir);
-				
-				el.onFinished(null);
+				if(i>=files.length)
+				{
+					//write results to storage
+					writeResultToStorage(problemDir);
+					
+					el.onFinished(null);
+				}
 			}
 			
 		}).start();
@@ -253,16 +274,19 @@ public class Solver {
 	 */
 	private void batSolveEach(String problemPath, String algorithmType, final AtomicBoolean problemSolved)
 	{
-		ProblemParser parser = new ProblemParser(problemPath);
-		
-		Problem problem=null;
+		String treeGeneratorType=null;
 		if(algorithmType.equals("BFSDPOP"))
 		{
-			problem=parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_BFS);
+			treeGeneratorType=TreeGenerator.TREE_GENERATOR_TYPE_BFS;
 		}else
 		{
-			problem=parser.parse(TreeGenerator.TREE_GENERATOR_TYPE_DFS);
+			treeGeneratorType=TreeGenerator.TREE_GENERATOR_TYPE_DFS;
 		}
+		
+		Problem problem=null;
+		ProblemParser parser=new ProblemParser(problemPath, treeGeneratorType);
+		problem=parser.parse();
+
 		if(problem==null)
 		{
 			synchronized (problemSolved) {
@@ -300,11 +324,11 @@ public class Solver {
 		//if(algorithmType.equals("BNBADOPT")||algorithmType.equals("ADOPT"))
 		{
 			//construct agents
-			AgentManagerCycle agentManager=new AgentManagerCycle(problem, algorithmType);
-			MessageMailerCycle msgMailer=new MessageMailerCycle(agentManager);
+			AgentManagerCycle agentManagerCycle=new AgentManagerCycle(problem, algorithmType);
+			MessageMailerCycle msgMailer=new MessageMailerCycle(agentManagerCycle);
 			msgMailer.addEventListener(el);
 			msgMailer.start();
-			agentManager.startAgents(msgMailer);
+			agentManagerCycle.startAgents(msgMailer);
 		}
 		//采用异步消息机制的算法
 		else

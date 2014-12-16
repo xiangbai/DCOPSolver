@@ -24,7 +24,9 @@ import com.cqu.core.ResultAdopt;
 import com.cqu.core.ResultDPOP;
 import com.cqu.core.Solver;
 import com.cqu.settings.Settings;
+import com.cqu.util.DateUtil;
 import com.cqu.util.DialogUtil;
+import com.cqu.util.FormatUtil;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
@@ -65,12 +67,15 @@ public class SolverWindow {
 	private JCheckBox cbDebug;
 	private JCheckBox cbTreeFrame;
 	private JEditorPane epResultDetails;
+	private JSpinner spinnerMaxDimensionsInMBDPOP;
+	private JSpinner spinnerADOPT_K;
 	
 	private JTextArea epConsoleLines;
 	private ConsoleRedirectThread consoleRedirectThread;
 	private String consoleOutput="";
 	private int consoleOutputLineCount=0;
 	private static final int MAX_CONSOLE_LINE_COUNT=100;
+	private PrintStream printStream;
 	
 	private Map<String, Boolean> componentStatus;
 	
@@ -119,7 +124,9 @@ public class SolverWindow {
 				});
 			}
 		});
-		System.setOut(new PrintStream(consoleRedirectThread.getOut(), true));
+		printStream=new PrintStream(consoleRedirectThread.getOut(), true);
+		System.setOut(printStream);
+		System.setErr(printStream);
 		consoleRedirectThread.start();
 		System.out.println("DCOPSolver starts working...");
 	}
@@ -140,7 +147,7 @@ public class SolverWindow {
 		});
 		frmDcopsolver.setResizable(false);
 		frmDcopsolver.setTitle("DCOPSolver");
-		frmDcopsolver.setBounds(100, 100, 687, 489);
+		frmDcopsolver.setBounds(100, 100, 737, 621);
 		frmDcopsolver.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		menuBar = new JMenuBar();
@@ -225,7 +232,7 @@ public class SolverWindow {
 		JPanel panel = new JPanel();
 		panel.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
 		panel.setLayout(null);
-		panel.setBounds(10, 10, 459, 132);
+		panel.setBounds(10, 35, 459, 132);
 		frmDcopsolver.getContentPane().add(panel);
 		
 		JLabel label = new JLabel("路径：");
@@ -271,9 +278,9 @@ public class SolverWindow {
 		panel.add(label_3);
 		
 		labelFlagRunning = new JLabel("");
-		//labelFlagRunning.setIcon(new ImageIcon("E:\\hz\\java\\workspace\\DCOPSolver\\DCOPSolver\\resources\\loading.gif"));
+		labelFlagRunning.setIcon(new ImageIcon("resources/loading.gif"));
 		labelFlagRunning.setHorizontalAlignment(SwingConstants.CENTER);
-		labelFlagRunning.setBounds(404, 83, 45, 38);
+		labelFlagRunning.setBounds(409, 83, 40, 39);
 		panel.add(labelFlagRunning);
 		
 		btnOpen = new JButton("打开");
@@ -290,7 +297,7 @@ public class SolverWindow {
 		
 		JPanel panel_1 = new JPanel();
 		panel_1.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
-		panel_1.setBounds(10, 152, 459, 106);
+		panel_1.setBounds(10, 202, 459, 156);
 		frmDcopsolver.getContentPane().add(panel_1);
 		panel_1.setLayout(null);
 		
@@ -304,12 +311,12 @@ public class SolverWindow {
 		panel_1.add(spinnerMessageTransmissionTime);
 		
 		JLabel label_6 = new JLabel("每次消息通信NCCC：");
-		label_6.setBounds(241, 16, 130, 15);
+		label_6.setBounds(241, 13, 130, 15);
 		panel_1.add(label_6);
 		
 		spinnerMessageTransmissionNCCC = new JSpinner();
 		spinnerMessageTransmissionNCCC.setModel(new SpinnerNumberModel(0, 0, 1000, 10));
-		spinnerMessageTransmissionNCCC.setBounds(381, 13, 70, 22);
+		spinnerMessageTransmissionNCCC.setBounds(381, 10, 70, 22);
 		panel_1.add(spinnerMessageTransmissionNCCC);
 		
 		JLabel label_7 = new JLabel("BNB合并算法分层：");
@@ -317,7 +324,7 @@ public class SolverWindow {
 		panel_1.add(label_7);
 		
 		spinnerBnbLayer = new JSpinner();
-		spinnerBnbLayer.setModel(new SpinnerNumberModel(2, 2, 10, 1));
+		spinnerBnbLayer.setModel(new SpinnerNumberModel(0.5, 0, 1, 0.1));
 		spinnerBnbLayer.setBounds(161, 42, 70, 22);
 		panel_1.add(spinnerBnbLayer);
 		
@@ -336,20 +343,53 @@ public class SolverWindow {
 		cbTreeFrame.setBounds(241, 76, 210, 23);
 		panel_1.add(cbTreeFrame);
 		
+		JLabel lblNewLabel = new JLabel("MBDPOP维度限制：");
+		lblNewLabel.setBounds(10, 116, 141, 15);
+		panel_1.add(lblNewLabel);
+		
+		spinnerMaxDimensionsInMBDPOP = new JSpinner();
+		spinnerMaxDimensionsInMBDPOP.setModel(new SpinnerNumberModel(8, 3, 20, 1));
+		spinnerMaxDimensionsInMBDPOP.setBounds(161, 113, 70, 22);
+		panel_1.add(spinnerMaxDimensionsInMBDPOP);
+		
+		JLabel lblAdoptkk = new JLabel("ADOPT_k中k值：");
+		lblAdoptkk.setBounds(241, 116, 141, 15);
+		panel_1.add(lblAdoptkk);
+		
+		spinnerADOPT_K = new JSpinner();
+		spinnerADOPT_K.setBounds(381, 113, 70, 22);
+		panel_1.add(spinnerADOPT_K);
+		
 		JScrollPane scrollPane = new JScrollPane();
-		scrollPane.setBounds(10, 268, 459, 162);
+		scrollPane.setBounds(10, 393, 459, 169);
 		frmDcopsolver.getContentPane().add(scrollPane);
 		
 		epConsoleLines = new JTextArea();
 		scrollPane.setViewportView(epConsoleLines);
 		
 		JScrollPane scrollPane_1 = new JScrollPane();
-		scrollPane_1.setBounds(479, 10, 192, 420);
+		scrollPane_1.setBounds(479, 35, 238, 527);
 		frmDcopsolver.getContentPane().add(scrollPane_1);
 		scrollPane_1.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		
 		epResultDetails = new JEditorPane();
 		scrollPane_1.setViewportView(epResultDetails);
+		
+		JLabel label_2 = new JLabel("控制台输出");
+		label_2.setBounds(10, 368, 760, 15);
+		frmDcopsolver.getContentPane().add(label_2);
+		
+		JLabel label_4 = new JLabel("算法参数设置");
+		label_4.setBounds(10, 177, 459, 15);
+		frmDcopsolver.getContentPane().add(label_4);
+		
+		JLabel label_8 = new JLabel("运行结果");
+		label_8.setBounds(479, 10, 192, 15);
+		frmDcopsolver.getContentPane().add(label_8);
+		
+		JLabel label_9 = new JLabel("运行设置");
+		label_9.setBounds(10, 10, 459, 15);
+		frmDcopsolver.getContentPane().add(label_9);
 		
 		initStatus();
 		setSettingValues();
@@ -386,7 +426,6 @@ public class SolverWindow {
 		componentStatus.put("combAlgorithmType", combAlgorithmType.isEnabled());
 		componentStatus.put("spinnerRepeatTimes", spinnerRepeatTimes.isEnabled());
 		componentStatus.put("labelRunProgress", labelRunProgress.isEnabled());
-		componentStatus.put("labelFlagRunning", labelFlagRunning.isEnabled());
 		componentStatus.put("btnOpen", btnOpen.isEnabled());
 		
 		componentStatus.put("spinnerMessageTransmissionTime", spinnerMessageTransmissionTime.isEnabled());
@@ -443,7 +482,7 @@ public class SolverWindow {
 		combAlgorithmType.setEnabled(componentStatus.get("combAlgorithmType"));
 		spinnerRepeatTimes.setEnabled(componentStatus.get("spinnerRepeatTimes"));
 		labelRunProgress.setEnabled(componentStatus.get("labelRunProgress"));
-		labelFlagRunning.setVisible(!componentStatus.get("labelFlagRunning"));
+		labelFlagRunning.setVisible(false);
 		btnOpen.setEnabled(componentStatus.get("btnOpen"));
 	}
 	
@@ -455,6 +494,8 @@ public class SolverWindow {
 		cbGraphFrame.setEnabled(enable);
 		cbDebug.setEnabled(enable);
 		cbTreeFrame.setEnabled(enable);
+		spinnerMaxDimensionsInMBDPOP.setEnabled(enable);
+		spinnerADOPT_K.setEnabled(enable);
 	}
 	
 	private void resumeSettingPanel()
@@ -465,6 +506,8 @@ public class SolverWindow {
 		cbGraphFrame.setEnabled(componentStatus.get("cbGraphFrame"));
 		cbDebug.setEnabled(componentStatus.get("cbDebug"));
 		cbTreeFrame.setEnabled(componentStatus.get("cbTreeFrame"));
+		spinnerMaxDimensionsInMBDPOP.setEnabled(true);
+		spinnerADOPT_K.setEnabled(true);
 	}
 	
 	private void enableUI(boolean enable)
@@ -485,6 +528,8 @@ public class SolverWindow {
 	{
 		this.enableUI(false);
 		this.setSettingValues();
+		this.epResultDetails.setText("");
+		this.labelFlagRunning.setVisible(true);
 		
 		Solver solver=new Solver();
 		EventListener el=new EventListener() {
@@ -501,7 +546,8 @@ public class SolverWindow {
 				Result ret=(Result) result;
 				if(ret!=null)
 				{
-					String detailedResult="totalCost: "+ret.totalCost+"\n";
+					String detailedResult=DateUtil.currentTime()+"\n";
+					detailedResult+="totalCost: "+ret.totalCost+"\n";
 					detailedResult+="totalTime: "+ret.totalTime+"ms\n";
 					detailedResult+="messageQuantity: "+ret.messageQuantity+"\n";
 					detailedResult+="lostRatio: "+ret.lostRatio+"%"+"\n";
@@ -510,9 +556,9 @@ public class SolverWindow {
 						detailedResult+="NCCC: "+((ResultAdopt)ret).nccc+"\n";
 					}else if(ret instanceof ResultDPOP)
 					{
-						detailedResult+="utilMsgSizeMin: "+((ResultDPOP)ret).utilMsgSizeMin+"\n";
-						detailedResult+="utilMsgSizeMax: "+((ResultDPOP)ret).utilMsgSizeMax+"\n";
-						detailedResult+="utilMsgSizeAvg: "+((ResultDPOP)ret).utilMsgSizeAvg+"\n";
+						detailedResult+="utilMsgSizeMin: "+FormatUtil.formatSize(((ResultDPOP)ret).utilMsgSizeMin)+"\n";
+						detailedResult+="utilMsgSizeMax: "+FormatUtil.formatSize(((ResultDPOP)ret).utilMsgSizeMax)+"\n";
+						detailedResult+="utilMsgSizeAvg: "+FormatUtil.formatSize(((ResultDPOP)ret).utilMsgSizeAvg)+"\n";
 					}
 					for(Integer key : ret.agentValues.keySet())
 					{
@@ -542,7 +588,7 @@ public class SolverWindow {
 		if(this.isBatch()==false)
 		{
 			solver.solve(problemPath, (String) combAlgorithmType.getSelectedItem(), 
-					cbTreeFrame.isSelected(), cbDebug.isSelected(), el); 
+					cbTreeFrame.isSelected(), cbDebug.isSelected(), el);
 		}else
 		{
 			solver.batSolve(problemPath, (String) combAlgorithmType.getSelectedItem(), (Integer)spinnerRepeatTimes.getValue(), el, new Solver.BatSolveListener(){
@@ -560,7 +606,9 @@ public class SolverWindow {
 	{
 		Settings.settings.setCommunicationTimeInDPOPs((Integer)spinnerMessageTransmissionTime.getValue());
 		Settings.settings.setCommunicationNCCCInAdopts((Integer)spinnerMessageTransmissionNCCC.getValue());
-		Settings.settings.setBNBmergeADOPTboundArg((Integer)spinnerBnbLayer.getValue());
+		Settings.settings.setBNBmergeADOPTboundArg((Double)spinnerBnbLayer.getValue());
 		Settings.settings.setDisplayGraphFrame(cbGraphFrame.isSelected());
+		Settings.settings.setMaxDimensionsInMBDPOP((Integer)spinnerMaxDimensionsInMBDPOP.getValue());
+		Settings.settings.setADOPT_K((Integer) spinnerADOPT_K.getValue());
 	}
 }

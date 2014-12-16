@@ -20,6 +20,7 @@ import org.jdom2.input.SAXBuilder;
 import org.jdom2.input.sax.XMLReaders;
 
 import com.cqu.bfsdpop.CrossEdgeAllocator;
+import com.cqu.heuristics.LeastConnectedHeuristic;
 import com.cqu.heuristics.MostConnectedHeuristic;
 import com.cqu.main.DOTrenderer;
 import com.cqu.util.CollectionUtil;
